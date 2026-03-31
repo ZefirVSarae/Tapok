@@ -1,5 +1,6 @@
 aiogram
 opencv-python
 pyautogui
+pillow
 pygame
 pyinstaller
