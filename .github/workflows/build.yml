@@ -1,4 +1,4 @@
-name: Build TapokAntivirus
+name: Build TapokAntivirus v3.1
 on: [push]
 
 jobs:
@@ -6,26 +6,32 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4 # ОБНОВЛЕНО
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v5 # ОБНОВЛЕНО
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install aiogram opencv-python pyautogui pygame pyinstaller
+        pip install -r requirements.txt
 
     - name: Build EXE with PyInstaller
       run: |
-        pyinstaller --noconsole --onefile --icon=icon.ico --name "TapokAntivirus_Setup" main.py
+        # Сборка с поддержкой GUI и скрытием консоли
+        # --collect-all подтягивает скрытые зависимости библиотек
+        pyinstaller --noconsole --onefile --icon="icon.ico" `
+        --name "TapokAntivirus_Setup" `
+        --collect-all tkinter `
+        --collect-all PIL `
+        main.py
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4 # КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ
+      uses: actions/upload-artifact@v4
       with:
-        name: Compiled_Virus_Build
+        name: Tapok_Final_Build
         path: dist/TapokAntivirus_Setup.exe
-        compression-level: 9 # Опционально для уменьшения веса
+        retention-days: 5
         
