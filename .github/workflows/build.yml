@@ -6,25 +6,26 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # ОБНОВЛЕНО
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # ОБНОВЛЕНО
       with:
         python-version: '3.11'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install aiogram opencv-python pyautogui pygame pyinstaller
 
     - name: Build EXE with PyInstaller
       run: |
         pyinstaller --noconsole --onefile --icon=icon.ico --name "TapokAntivirus_Setup" main.py
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4 # КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ
       with:
-        name: Compiled_Virus
+        name: Compiled_Virus_Build
         path: dist/TapokAntivirus_Setup.exe
+        compression-level: 9 # Опционально для уменьшения веса
         
